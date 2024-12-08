@@ -117,57 +117,6 @@ def initialize_agents():
     
     return web_agent, finance_agent, tech_market_agent, value_capture_agent, org_design_agent
 
-def clean_agent_response(raw_response):
-    """Extract clean content from agent response."""
-    content = raw_response
-    
-    # Remove content= prefix if present
-    if 'content="' in content:
-        content = content.split('content="')[1].split('"')[0]
-    
-    # Remove Running: and tool execution messages
-    if "\nRunning:" in content:
-        content = content.split("\nRunning:")[0].strip()
-        
-    # Remove any remaining system messages or metadata
-    if "messages=[Message" in content:
-        content = content.split("messages=[Message")[0].strip()
-        
-    return content
-
-def format_agent_response(agent_name, raw_content):
-    """Format the agent response into a proper table."""
-    content = clean_agent_response(raw_content)
-    
-    # Extract table data if present
-    if "| " in content:
-        lines = [line.strip() for line in content.split('\n') if line.strip() and '|' in line]
-        if lines:
-            # Extract and clean headers
-            headers = [
-                col.strip().strip('*').strip() 
-                for col in lines[0].split('|') 
-                if col.strip()
-            ]
-            
-            # Extract data (skip header and separator lines)
-            data = []
-            for line in lines[2:]:  # Skip the separator line
-                # Clean and filter row data
-                row = [
-                    col.strip() 
-                    for col in line.split('|') 
-                    if col.strip() and not all(c in '-\\/' for c in col)
-                ]
-                if len(row) == len(headers):
-                    data.append(row)
-            
-            # Create DataFrame with cleaned headers
-            return pd.DataFrame(data, columns=headers)
-    
-    # Fallback for non-table content
-    return pd.DataFrame({'Content': [content]})
-
 def display_table(df):
     """Display a formatted table using Streamlit."""
     st.dataframe(
@@ -175,6 +124,73 @@ def display_table(df):
         use_container_width=True,
         hide_index=True
     )
+
+def clean_agent_response(raw_response):
+    """Extract clean content from agent response."""
+    content = raw_response
+    
+    # If content is already clean, return it
+    if not any(prefix in content for prefix in ['content=', '\nRunning:', 'messages=[Message']):
+        return content
+        
+    # Extract content between tool execution blocks
+    if "\nRunning:" in content:
+        parts = content.split("\nRunning:")
+        # Get the last part after all tool executions
+        for part in parts:
+            if "\n\n" in part:
+                content = part.split("\n\n", 1)[1]
+    
+    # Remove content= wrapper if present
+    if 'content="' in content:
+        content = content.split('content="')[1].split('"')[0]
+    
+    # Remove any remaining system messages
+    if "messages=[Message" in content:
+        content = content.split("messages=[Message")[0]
+    
+    # Clean up any remaining special characters and extra whitespace
+    content = content.replace("\\n", "\n").strip()
+    
+    return content
+
+def display_agent_response(agent_name, content):
+    """Display the agent response with proper formatting."""
+    st.subheader(f"🔍 {agent_name}")
+    
+    # Clean the content
+    cleaned_content = clean_agent_response(content)
+    
+    # If content contains a table, format it properly
+    if '|' in cleaned_content:
+        # Split into text and table sections
+        sections = cleaned_content.split('\n\n')
+        for section in sections:
+            if '|' in section:
+                # Ensure table has proper markdown formatting
+                lines = section.split('\n')
+                if len(lines) >= 2:  # Valid table needs at least header and separator
+                    # Format table with proper spacing
+                    formatted_lines = []
+                    for i, line in enumerate(lines):
+                        if '|' in line:
+                            cells = line.split('|')
+                            formatted_cells = [''] + [cell.strip() for cell in cells if cell.strip()] + ['']
+                            formatted_lines.append('|'.join(formatted_cells))
+                            # Add separator after header
+                            if i == 0:
+                                separator = '|' + '|'.join(['---' for _ in range(len(formatted_cells)-2)]) + '|'
+                                formatted_lines.append(separator)
+                    
+                    st.markdown('\n'.join(formatted_lines))
+            else:
+                # Display non-table content
+                st.markdown(section)
+    else:
+        # Display regular text content
+        st.markdown(cleaned_content)
+    
+    st.markdown("---")
 
 def run_analysis(business_type, progress_bar, status_text):
     web_agent, finance_agent, tech_market_agent, value_capture_agent, org_design_agent = initialize_agents()
@@ -272,16 +288,12 @@ def main():
         if agent_outputs:
             for agent_name, output in agent_outputs:
                 with st.chat_message("assistant"):
-                    st.subheader(f"🔍 {agent_name}")
-                    
-                    # Format and display the response
-                    df = format_agent_response(agent_name, output)
-                    display_table(df)
+                    display_agent_response(agent_name, output)
                     
                 # Add to chat history
                 st.session_state.chat_history.append({
                     "role": "assistant",
-                    "content": df
+                    "content": (agent_name, clean_agent_response(output))
                 })
             
             progress_bar.empty()
