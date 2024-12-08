@@ -25,10 +25,10 @@ def initialize_agents():
             "Format each finding as 'Key Development: Details'",
             "Include only the most relevant 3-5 developments",
             "Always include sources",
-        "Use tables to display data",
-        "Integrate market, technology, and organizational perspectives",
-        "Focus on both value creation and value capture",
-        "Include actionable recommendations"
+            "Use tables to display data",
+            "Integrate market, technology, and organizational perspectives",
+            "Focus on both value creation and value capture",
+            "Include actionable recommendations",
             "Each point should be on a new line starting with '-'",
             "Include source at the end of each point in square brackets"
         ],
@@ -117,13 +117,64 @@ def initialize_agents():
     
     return web_agent, finance_agent, tech_market_agent, value_capture_agent, org_design_agent
 
-def format_output_as_table(agent_outputs):
-    for agent_name, output in agent_outputs:
-        st.subheader(agent_name)
-        # Create a single-column table with a clean look
-        df = pd.DataFrame({'Analysis': [output]})
-        st.table(df)
-        st.markdown("---")
+def clean_agent_response(raw_response):
+    """Extract clean content from agent response."""
+    content = raw_response
+    
+    # Remove content= prefix if present
+    if 'content="' in content:
+        content = content.split('content="')[1].split('"')[0]
+    
+    # Remove Running: and tool execution messages
+    if "\nRunning:" in content:
+        content = content.split("\nRunning:")[0].strip()
+        
+    # Remove any remaining system messages or metadata
+    if "messages=[Message" in content:
+        content = content.split("messages=[Message")[0].strip()
+        
+    return content
+
+def format_agent_response(agent_name, raw_content):
+    """Format the agent response into a proper table."""
+    content = clean_agent_response(raw_content)
+    
+    # Extract table data if present
+    if "| " in content:
+        lines = [line.strip() for line in content.split('\n') if line.strip() and '|' in line]
+        if lines:
+            # Extract and clean headers
+            headers = [
+                col.strip().strip('*').strip() 
+                for col in lines[0].split('|') 
+                if col.strip()
+            ]
+            
+            # Extract data (skip header and separator lines)
+            data = []
+            for line in lines[2:]:  # Skip the separator line
+                # Clean and filter row data
+                row = [
+                    col.strip() 
+                    for col in line.split('|') 
+                    if col.strip() and not all(c in '-\\/' for c in col)
+                ]
+                if len(row) == len(headers):
+                    data.append(row)
+            
+            # Create DataFrame with cleaned headers
+            return pd.DataFrame(data, columns=headers)
+    
+    # Fallback for non-table content
+    return pd.DataFrame({'Content': [content]})
+
+def display_table(df):
+    """Display a formatted table using Streamlit."""
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
 
 def run_analysis(business_type, progress_bar, status_text):
     web_agent, finance_agent, tech_market_agent, value_capture_agent, org_design_agent = initialize_agents()
@@ -176,15 +227,38 @@ def run_analysis(business_type, progress_bar, status_text):
 def main():
     st.set_page_config(page_title="Business Analysis System", layout="wide")
     
-    # Move input controls to sidebar
+    # Sidebar
     with st.sidebar:
-        st.title("Business Analysis System")
-        st.write("Generate comprehensive business analysis reports using AI agents")
+        st.title("🏢 Business Analysis System")
+        st.markdown("---")
         
         business_type = st.text_input("What kind of company do you want to analyze?")
         generate_button = st.button("Generate Analysis")
+        
+        with st.expander("ℹ️ How to use"):
+            st.markdown("""
+            1. Enter the type of business you want to analyze
+            2. Click 'Generate Analysis' to start
+            3. View comprehensive analysis including:
+               - Industry News
+               - Market Analysis
+               - Financial Analysis
+               - Strategic Recommendations
+               - Organizational Design
+            """)
+
+    # Initialize chat history
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+
+    # Display chat history
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            if isinstance(message["content"], pd.DataFrame):
+                display_table(message["content"])
+            else:
+                st.markdown(message["content"])
     
-    # Main area for results
     if generate_button:
         if not business_type:
             st.sidebar.warning("Please enter a business type")
@@ -196,11 +270,22 @@ def main():
         agent_outputs = run_analysis(business_type, progress_bar, status_text)
         
         if agent_outputs:
-            # Display results in a table format
-            format_output_as_table(agent_outputs)
+            for agent_name, output in agent_outputs:
+                with st.chat_message("assistant"):
+                    st.subheader(f"🔍 {agent_name}")
+                    
+                    # Format and display the response
+                    df = format_agent_response(agent_name, output)
+                    display_table(df)
+                    
+                # Add to chat history
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": df
+                })
             
             progress_bar.empty()
-            status_text.text("Analysis complete! You can now view the report above.")
+            status_text.text("Analysis complete!")
 
 if __name__ == "__main__":
     main()
