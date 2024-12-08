@@ -22,8 +22,15 @@ def initialize_agents():
         tools=[GoogleSearch()],
         instructions=[
             "Search for latest news and information about the given topic",
-            "Provide 3-5 key findings with dates and sources",
-            "Format information in clear, digestible bullet points"
+            "Format each finding as 'Key Development: Details'",
+            "Include only the most relevant 3-5 developments",
+            "Always include sources",
+        "Use tables to display data",
+        "Integrate market, technology, and organizational perspectives",
+        "Focus on both value creation and value capture",
+        "Include actionable recommendations"
+            "Each point should be on a new line starting with '-'",
+            "Include source at the end of each point in square brackets"
         ],
         show_tool_calls=True,
         markdown=True,
@@ -110,48 +117,13 @@ def initialize_agents():
     
     return web_agent, finance_agent, tech_market_agent, value_capture_agent, org_design_agent
 
-class ReportFormatter:
-    def __init__(self):
-        self.document = Document()
-        style = self.document.styles['Normal']
-        style.font.name = 'Calibri'
-        style.font.size = Pt(11)
-        
-    def clean_output(self, text):
-        cleaned = re.sub(r'Running:.*?(?=\n\n)', '', text, flags=re.DOTALL)
-        cleaned = re.sub(r'• transfer_task_to.*?\.\.\..*?\n', '', cleaned)
-        cleaned = re.sub(r'^\s*\n', '', cleaned)
-        return cleaned.strip()
-        
-    def add_section(self, title, content):
-        section_heading = self.document.add_heading(level=1)
-        heading_run = section_heading.add_run(title)
-        heading_run.bold = True
-        
-        cleaned_content = self.clean_output(content)
-        self.document.add_paragraph(cleaned_content)
-        self.document.add_paragraph('_' * 50)
-
-    def format_document(self, title, agent_outputs):
-        title_heading = self.document.add_heading(level=0)
-        title_run = title_heading.add_run(title)
-        title_run.bold = True
-        title_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        date_paragraph = self.document.add_paragraph()
-        date_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        date_paragraph.add_run(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}")
-        
-        self.document.add_paragraph('_' * 50)
-        
-        for agent_name, output in agent_outputs:
-            self.add_section(f"{agent_name} Analysis", output)
-
-    def save_to_bytes(self):
-        docx_bytes = BytesIO()
-        self.document.save(docx_bytes)
-        docx_bytes.seek(0)
-        return docx_bytes
+def format_output_as_table(agent_outputs):
+    for agent_name, output in agent_outputs:
+        st.subheader(agent_name)
+        # Create a single-column table with a clean look
+        df = pd.DataFrame({'Analysis': [output]})
+        st.table(df)
+        st.markdown("---")
 
 def run_analysis(business_type, progress_bar, status_text):
     web_agent, finance_agent, tech_market_agent, value_capture_agent, org_design_agent = initialize_agents()
@@ -224,33 +196,11 @@ def main():
         agent_outputs = run_analysis(business_type, progress_bar, status_text)
         
         if agent_outputs:
-            # Create tabs for different sections in main area
-            tabs = st.tabs(["Report View", "Download Report"])
-            
-            with tabs[0]:
-                for agent_name, output in agent_outputs:
-                    with st.expander(agent_name, expanded=True):
-                        st.markdown(output)
-            
-            with tabs[1]:
-                # Generate Word document
-                formatter = ReportFormatter()
-                title = f"{business_type.title()} Industry Analysis Report"
-                formatter.format_document(title, agent_outputs)
-                
-                # Get document as bytes
-                docx_bytes = formatter.save_to_bytes()
-                
-                # Create download button
-                st.download_button(
-                    label="Download Full Report",
-                    data=docx_bytes,
-                    file_name=f"{business_type.lower().replace(' ', '_')}_analysis_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
+            # Display results in a table format
+            format_output_as_table(agent_outputs)
             
             progress_bar.empty()
-            status_text.text("Analysis complete! You can now view the report above or download it.")
+            status_text.text("Analysis complete! You can now view the report above.")
 
 if __name__ == "__main__":
     main()
