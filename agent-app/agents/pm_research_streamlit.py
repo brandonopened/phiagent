@@ -21,6 +21,7 @@ def initialize_agents():
         model=OpenAIChat(id="gpt-4o"),
         tools=[GoogleSearch()],
         instructions=[
+            "Your agent will now:",
             "Search for latest news and information about the given topic",
             "Format each finding as 'Key Development: Details'",
             "Include only the most relevant 3-5 developments",
@@ -109,7 +110,7 @@ def initialize_agents():
             "Optimize for innovation and value delivery",
             "Consider organizational culture and dynamics",
             "Provide practical implementation steps",
-            "Always include sources"
+            "Include source at the end of each point in square brackets"
         ],
         show_tool_calls=True,
         markdown=True,
@@ -130,27 +131,54 @@ def clean_agent_response(raw_response):
     content = raw_response
     
     # If content is already clean, return it
-    if not any(prefix in content for prefix in ['content=', '\nRunning:', 'messages=[Message']):
+    if not any(prefix in content for prefix in ['content=', '\nRunning:', 'messages=[Message', 'get_']):
         return content
-        
-    # Extract content between tool execution blocks
+    
+    # Extract the main content after all tool executions
     if "\nRunning:" in content:
         parts = content.split("\nRunning:")
-        # Get the last part after all tool executions
+        # Get the last meaningful part
         for part in parts:
-            if "\n\n" in part:
+            if "\n\n" in part and "|" in part:  # Look for table content
                 content = part.split("\n\n", 1)[1]
+                break
     
     # Remove content= wrapper if present
     if 'content="' in content:
         content = content.split('content="')[1].split('"')[0]
     
-    # Remove any remaining system messages
-    if "messages=[Message" in content:
-        content = content.split("messages=[Message")[0]
-    
     # Clean up any remaining special characters and extra whitespace
-    content = content.replace("\\n", "\n").strip()
+    content = (content.replace("\\n", "\n")
+              .replace("```", "")
+              .replace("markdown", "")
+              .strip())
+    
+    # Format tables properly
+    if "|" in content:
+        lines = content.split("\n")
+        formatted_lines = []
+        in_table = False
+        
+        for line in lines:
+            line = line.strip()
+            if "|" in line:
+                # Clean up table formatting
+                cells = [cell.strip() for cell in line.split("|")]
+                cells = [cell for cell in cells if cell]  # Remove empty cells
+                formatted_line = "| " + " | ".join(cells) + " |"
+                formatted_lines.append(formatted_line)
+                
+                # Add separator after header if not present
+                if not in_table:
+                    separator = "|" + "|".join(" --- " for _ in cells) + "|"
+                    formatted_lines.append(separator)
+                    in_table = True
+            else:
+                if line:  # Only add non-empty lines
+                    formatted_lines.append(line)
+                    in_table = False
+        
+        content = "\n".join(formatted_lines)
     
     return content
 
@@ -158,39 +186,23 @@ def display_agent_response(agent_name, content):
     """Display the agent response with proper formatting."""
     st.subheader(f"🔍 {agent_name}")
     
-    # Clean the content
+    # Clean and format the content
     cleaned_content = clean_agent_response(content)
     
-    # If content contains a table, format it properly
-    if '|' in cleaned_content:
-        # Split into text and table sections
-        sections = cleaned_content.split('\n\n')
-        for section in sections:
-            if '|' in section:
-                # Ensure table has proper markdown formatting
-                lines = section.split('\n')
-                if len(lines) >= 2:  # Valid table needs at least header and separator
-                    # Format table with proper spacing
-                    formatted_lines = []
-                    for i, line in enumerate(lines):
-                        if '|' in line:
-                            cells = line.split('|')
-                            formatted_cells = [''] + [cell.strip() for cell in cells if cell.strip()] + ['']
-                            formatted_lines.append('|'.join(formatted_cells))
-                            # Add separator after header
-                            if i == 0:
-                                separator = '|' + '|'.join(['---' for _ in range(len(formatted_cells)-2)]) + '|'
-                                formatted_lines.append(separator)
-                    
-                    st.markdown('\n'.join(formatted_lines))
-            else:
-                # Display non-table content
-                st.markdown(section)
-    else:
-        # Display regular text content
-        st.markdown(cleaned_content)
+    # Split content into sections
+    sections = cleaned_content.split("\n\n")
     
-    st.markdown("---")
+    for section in sections:
+        if section.strip():  # Only process non-empty sections
+            if "|" in section:
+                # It's a table - ensure proper markdown formatting
+                st.markdown(section)
+                st.markdown("---")  # Add separator after table
+            else:
+                # Regular text content
+                st.markdown(section)
+    
+    st.markdown("---")  # Add final separator
 
 def run_analysis(business_type, progress_bar, status_text):
     web_agent, finance_agent, tech_market_agent, value_capture_agent, org_design_agent = initialize_agents()
