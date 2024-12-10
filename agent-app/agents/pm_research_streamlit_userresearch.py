@@ -15,20 +15,19 @@ from io import BytesIO
 
 # Initialize agents
 def initialize_agents():
-    web_agent = Agent(
-        name="Web Agent",
-        role="Search the web for latest information and news",
+    user_review_agent = Agent(
+        name="User Review Analyzer",
+        role="Analyze user reviews and feedback from similar products",
         model=OpenAIChat(id="gpt-4o"),
         tools=[GoogleSearch()],
         instructions=[
-            "Search for latest news and information about the given topic",
-            "Format each finding as 'Key Development: Details'",
-            "Include only the most relevant 3-5 developments",
-            "Always include sources",
-            "Use tables to display data",
-            "Integrate market, technology, and organizational perspectives",
-            "Focus on both value creation and value capture",
-            "Include actionable recommendations",
+            "Search for user reviews of similar products/apps",
+            "Identify common pain points and desired features",
+            "Format findings as 'Theme: User Feedback'",
+            "Include star ratings where available",
+            "Focus on both positive and negative feedback",
+            "Include direct user quotes when relevant",
+            "Analyze reviews from multiple platforms (App Store, Play Store, ProductHunt, etc.)",
             "Each point should be on a new line starting with '-'",
             "Include source at the end of each point in square brackets"
         ],
@@ -36,87 +35,81 @@ def initialize_agents():
         markdown=True,
     )
 
-    finance_agent = Agent(
-        name="Finance Agent",
-        role="Analyze financial data and market trends",
+    competitor_analysis_agent = Agent(
+        name="Competitor Analysis Expert",
+        role="Analyze competing products and their features",
         model=OpenAIChat(id="gpt-4o"),
-        tools=[YFinanceTools(stock_price=True, analyst_recommendations=True, company_info=True)],
+        tools=[GoogleSearch()],
         instructions=[
-            "Analyze financial metrics and market data",
-            "Present data in clear tables",
-            "Highlight key financial insights and trends",
-            "Show stock prices for identified companies"
+            "Identify top 5 competing products",
+            "Compare pricing models and tiers",
+            "List key features of each competitor",
+            "Identify unique selling propositions",
+            "Note user satisfaction scores",
+            "Include download/user numbers where available",
+            "Present data in clear tables"
         ],
         show_tool_calls=True,
         markdown=True,
     )
 
-    tech_market_agent = Agent(
-        name="Technology and Market Opportunity Expert",
-        role="Analyze technology trends, market dynamics, and identify value creation opportunities",
+    user_persona_agent = Agent(
+        name="User Persona Developer",
+        role="Create detailed user personas based on market research",
         model=OpenAIChat(id="gpt-4o"),
         tools=[GoogleSearch()],
         instructions=[
-            "Provide a structured market analysis with these specific sections:",
-            
-            "1. MARKET SIZE & GROWTH",
-            "- Current global market size with specific dollar amount",
-            "- Year-over-year growth rate (CAGR)",
-            "- 5-year market size projection",
-            "- Break down by major geographic regions",
-            
-            "2. MARKET SEGMENTS",
-            "- List top 3-5 market segments with size/share",
-            "- Identify fastest growing segments",
-            "- Key drivers for each segment",
-            
-            "3. COMPETITIVE LANDSCAPE",
-            "- Market share of top 5 players",
-            "- Recent funding rounds and valuations",
-            "- Key partnerships and acquisitions",
-            
-            "4. GROWTH DRIVERS & TRENDS",
-            "- List specific technological advancements",
-            "- Regulatory impacts",
-            "- Customer demand patterns"
+            "Identify 3-4 key user personas",
+            "For each persona include:",
+            "- Demographics",
+            "- Goals and motivations",
+            "- Pain points",
+            "- Feature preferences",
+            "- Willingness to pay",
+            "- Usage patterns",
+            "Base personas on real market data and user feedback"
         ],
         show_tool_calls=True,
         markdown=True,
     )
 
-    value_capture_agent = Agent(
-        name="Value Capture Strategist",
-        role="Develop strategies for IP protection, market positioning, and competitive advantage",
+    feature_pricing_agent = Agent(
+        name="Feature & Pricing Strategist",
+        role="Analyze desired features and optimal pricing strategies",
         model=OpenAIChat(id="gpt-4o"),
         tools=[GoogleSearch()],
         instructions=[
-            "Focus on IP protection strategies",
-            "Develop market positioning recommendations",
-            "Identify competitive advantages",
-            "Provide actionable strategic recommendations",
-            "Always include sources"
+            "Analyze most requested features",
+            "Recommend feature prioritization",
+            "Suggest pricing tiers based on user feedback",
+            "Include willingness to pay data",
+            "Compare with competitor pricing",
+            "Recommend monetization strategy",
+            "Include market-specific pricing considerations"
         ],
         show_tool_calls=True,
         markdown=True,
     )
 
-    org_design_agent = Agent(
-        name="Organizational Design Architect",
-        role="Design optimal organizational structures and collaboration networks",
+    market_fit_agent = Agent(
+        name="Product-Market Fit Analyzer",
+        role="Evaluate product-market fit and growth opportunities",
         model=OpenAIChat(id="gpt-4o"),
         tools=[GoogleSearch()],
         instructions=[
-            "Design team structures and collaboration frameworks",
-            "Optimize for innovation and value delivery",
-            "Consider organizational culture and dynamics",
-            "Provide practical implementation steps",
-            "Always include sources"
+            "Analyze market demand signals",
+            "Identify underserved user needs",
+            "Evaluate competitive advantages",
+            "Suggest product positioning",
+            "Identify potential early adopters",
+            "Recommend go-to-market strategy",
+            "Include user acquisition channels"
         ],
         show_tool_calls=True,
         markdown=True,
     )
     
-    return web_agent, finance_agent, tech_market_agent, value_capture_agent, org_design_agent
+    return user_review_agent, competitor_analysis_agent, user_persona_agent, feature_pricing_agent, market_fit_agent
 
 def display_table(df):
     """Display a formatted table using Streamlit."""
@@ -194,46 +187,46 @@ def display_agent_response(agent_name, content):
     st.markdown("---")
 
 def run_analysis(business_type, progress_bar, status_text):
-    web_agent, finance_agent, tech_market_agent, value_capture_agent, org_design_agent = initialize_agents()
+    user_review_agent, competitor_analysis_agent, user_persona_agent, feature_pricing_agent, market_fit_agent = initialize_agents()
     
     agent_outputs = []
-    progress_step = 0.2  # Changed from 100/5 to 0.2 (20% per step)
+    progress_step = 0.2
     
     try:
-        # Web Agent
-        status_text.text("Gathering latest news...")
-        web_prompt = f"Provide latest news and developments in the {business_type} industry"
-        web_response = web_agent.run(web_prompt)
-        agent_outputs.append(("Industry News", str(web_response)))
+        # User Review Analysis
+        status_text.text("Analyzing user reviews...")
+        review_prompt = f"Find and analyze user reviews for apps/products similar to {business_type}"
+        review_response = user_review_agent.run(review_prompt)
+        agent_outputs.append(("User Review Analysis", str(review_response)))
         progress_bar.progress(progress_step)
 
-        # Tech Market Agent
-        status_text.text("Analyzing market...")
-        market_prompt = f"Based on the above news, provide detailed market analysis for {business_type} industry"
-        market_response = tech_market_agent.run(market_prompt)
-        agent_outputs.append(("Market Analysis", str(market_response)))
+        # Competitor Analysis
+        status_text.text("Analyzing competitors...")
+        competitor_prompt = f"Analyze top competing products in the {business_type} space"
+        competitor_response = competitor_analysis_agent.run(competitor_prompt)
+        agent_outputs.append(("Competitor Analysis", str(competitor_response)))
         progress_bar.progress(progress_step * 2)
 
-        # Finance Agent
-        status_text.text("Analyzing financials...")
-        finance_prompt = f"Analyze financial metrics of key players in the {business_type} industry"
-        finance_response = finance_agent.run(finance_prompt)
-        agent_outputs.append(("Financial Analysis", str(finance_response)))
+        # User Personas
+        status_text.text("Developing user personas...")
+        persona_prompt = f"Create user personas for {business_type} based on market research"
+        persona_response = user_persona_agent.run(persona_prompt)
+        agent_outputs.append(("User Personas", str(persona_response)))
         progress_bar.progress(progress_step * 3)
 
-        # Value Capture Agent
-        status_text.text("Developing strategies...")
-        value_prompt = f"Develop strategic recommendations for entering the {business_type} market"
-        value_response = value_capture_agent.run(value_prompt)
-        agent_outputs.append(("Strategic Recommendations", str(value_response)))
+        # Feature & Pricing Analysis
+        status_text.text("Analyzing features and pricing...")
+        pricing_prompt = f"Analyze desired features and optimal pricing for {business_type}"
+        pricing_response = feature_pricing_agent.run(pricing_prompt)
+        agent_outputs.append(("Feature & Pricing Analysis", str(pricing_response)))
         progress_bar.progress(progress_step * 4)
 
-        # Org Design Agent
-        status_text.text("Designing organization...")
-        org_prompt = f"Propose organizational structure for a {business_type} company"
-        org_response = org_design_agent.run(org_prompt)
-        agent_outputs.append(("Organizational Design", str(org_response)))
-        progress_bar.progress(1.0)  # Changed from 100 to 1.0
+        # Product-Market Fit
+        status_text.text("Evaluating product-market fit...")
+        fit_prompt = f"Evaluate product-market fit for {business_type}"
+        fit_response = market_fit_agent.run(fit_prompt)
+        agent_outputs.append(("Product-Market Fit", str(fit_response)))
+        progress_bar.progress(1.0)
         
         return agent_outputs
         
