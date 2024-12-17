@@ -1,7 +1,7 @@
-from phi.agent import Agent
-from phi.model.ollama import Ollama
-from phi.tools.googlesearch import GoogleSearch
-from phi.tools.yfinance import YFinanceTools
+from phidata.agent import Agent
+from phidata.model.ollama import Ollama
+from phidata.tools.googlesearch import GoogleSearch
+from phidata.tools.yfinance import YFinanceTools
 import inspect
 import types
 
