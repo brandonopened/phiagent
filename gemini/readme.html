@@ -22,39 +22,6 @@ python multimodal_ai_agentfrom_list.py
 
 You can change the spreadsheet products.csv to be whatever images you've uploaded into your folder here... I envision this being useful for a company doing competeitive research on it's own products etc. 
 
-  For now I comments out the ability for it to read a video file first because I don't quite see a use case for that for most companies yet) 
-  you could also make the output export to a word document by adding this code:
+OLLAMA
 
-  from docx import Document
-from datetime import datetime
-
-# ... existing code ...
-
-# Create a Word document
-doc = Document()
-doc.add_heading('Product Analysis Report', 0)
-doc.add_paragraph(f'Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-
-# 4. Loop through each product in the CSV
-for index, row in products_df.iterrows():
-    print(f"\n\n=== Analyzing Product {index + 1} ===\n")
-    
-    # Add product header to Word doc
-    doc.add_heading(f'Product {index + 1}', level=1)
-    
-    image_url = row['link']
-    response = agent.run(query, images=[image_url])  # Capture the response
-    
-    # Print to terminal
-    print(response)
-    
-    # Add to Word document
-    doc.add_paragraph(response)
-    doc.add_paragraph('\n' + '-'*50 + '\n')  # Add separator
-
-# Save the document
-filename = f'product_analysis_{datetime.now().strftime("%Y%m%d_%H%M%S")}.docx'
-doc.save(filename)
-print(f"\nAnalysis exported to {filename}")
-
-see the screenshot for how the output will look without that 
+Ollmaa is an open source AI running program that can use various models. Here I'm using the llama3.2-vision:11b model that can read video and images. I have an example output in the directory too - it's perhaps slower because my computer is slower, but 100% free and open source which is always worth supporting. 

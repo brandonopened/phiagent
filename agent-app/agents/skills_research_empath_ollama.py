@@ -1,6 +1,6 @@
-from phidata.agent import Agent
-from phidata.model.ollama import Ollama
-from phidata.tools.googlesearch import GoogleSearch
+from phi.agent import Agent
+from phi.agent.model.ollama import Ollama
+from phi.agent.tools.googlesearch import GoogleSearch
 import pandas as pd
 import os
 
