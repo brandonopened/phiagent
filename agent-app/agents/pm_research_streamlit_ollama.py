@@ -8,9 +8,6 @@ from docx import Document
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from datetime import datetime
-import re
-import os
-import base64
 from io import BytesIO
 
 # Initialize agents
@@ -18,7 +15,7 @@ def initialize_agents():
     web_agent = Agent(
         name="Web Agent",
         role="Search the web for latest information and news",
-        model=Ollama(model="llama2"),
+        model=Ollama(model="llama3.1:latest"),
         tools=[GoogleSearch()],
         instructions=[
             "Search for latest news and information about the given topic",
@@ -39,7 +36,7 @@ def initialize_agents():
     finance_agent = Agent(
         name="Finance Agent",
         role="Analyze financial data and market trends",
-        model=Ollama(model="llama2"),
+        model=Ollama(model="llama3.1:latest"),
         tools=[YFinanceTools(stock_price=True, analyst_recommendations=True, company_info=True)],
         instructions=[
             "Analyze financial metrics and market data",
@@ -54,7 +51,7 @@ def initialize_agents():
     tech_market_agent = Agent(
         name="Technology and Market Opportunity Expert",
         role="Analyze technology trends, market dynamics, and identify value creation opportunities",
-        model=Ollama(model="llama2"),
+        model=Ollama(model="llama3.1:latest"),
         tools=[GoogleSearch()],
         instructions=[
             "Provide a structured market analysis with these specific sections:",
@@ -87,7 +84,7 @@ def initialize_agents():
     value_capture_agent = Agent(
         name="Value Capture Strategist",
         role="Develop strategies for IP protection, market positioning, and competitive advantage",
-        model=Ollama(model="llama2"),
+        model=Ollama(model="llama3.1:latest"),
         tools=[GoogleSearch()],
         instructions=[
             "Focus on IP protection strategies",
@@ -103,7 +100,7 @@ def initialize_agents():
     org_design_agent = Agent(
         name="Organizational Design Architect",
         role="Design optimal organizational structures and collaboration networks",
-        model=Ollama(model="llama2"),
+        model=Ollama(model="llama3.1:latest"),
         tools=[GoogleSearch()],
         instructions=[
             "Design team structures and collaboration frameworks",
